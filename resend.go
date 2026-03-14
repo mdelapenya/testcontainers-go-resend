@@ -11,8 +11,8 @@ import (
 
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	microcks "microcks.io/testcontainers-go"
 	"gopkg.in/yaml.v3"
+	microcks "microcks.io/testcontainers-go"
 )
 
 //go:embed testdata/resend.yaml
@@ -41,7 +41,7 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 	for _, opt := range opts {
 		if o, ok := opt.(Option); ok {
 			if err := o(&ro); err != nil {
-				return nil, fmt.Errorf("run resend: %w", err)
+				return nil, fmt.Errorf("apply option: %w", err)
 			}
 		} else {
 			microcksOpts = append(microcksOpts, opt)
@@ -55,7 +55,12 @@ func Run(ctx context.Context, img string, opts ...testcontainers.ContainerCustom
 
 	moduleOpts := []testcontainers.ContainerCustomizer{
 		microcks.WithMainArtifact(specPath),
-		testcontainers.WithWaitStrategy(wait.ForListeningPort("8080/tcp")),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort("8080/tcp"),
+			wait.ForHTTP("/api/health").WithPort("8080/tcp").WithStatusCodeMatcher(func(status int) bool {
+				return status == http.StatusOK
+			}),
+		),
 	}
 	moduleOpts = append(moduleOpts, microcksOpts...)
 
